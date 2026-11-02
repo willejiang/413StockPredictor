@@ -1,0 +1,32 @@
+Data: Yahoo Finance via yfinance, adjusted close, 2010-01-05 to 2025-12-31
+Trading days with returns: 4023; missing closes per ticker: {'SPY': 0, 'QQQ': 0, 'TLT': 0, 'GLD': 0}
+Stress threshold (SPY 20d vol, train 80th pct): 0.174 annualized
+
+split  years      days  samples(L=40)  stress_days  stress_frac
+train  2010-2019   2515          2476          499      19.84%
+val    2020-2021    505           466          180      35.64%
+test   2022-2025   1003           964          318      31.70%
+
+Daily log-return statistics (2010-2025):
+        mean_daily_%  std_daily_%  ann_vol_%   skew  excess_kurt   min_%   max_%  lag1_autocorr  lag1_autocorr_|r|
+Ticker                                                                                                            
+SPY            0.052        1.086     17.245 -0.564       12.483 -11.589   9.986         -0.102              0.312
+QQQ            0.068        1.302     20.672 -0.390        7.470 -12.759  11.336         -0.089              0.258
+TLT            0.011        0.951     15.095 -0.030        3.455  -6.901   7.250         -0.038              0.234
+GLD            0.032        0.998     15.849 -0.516        4.768  -9.191   4.787         -0.015              0.084
+
+Correlation, calm days:
+Ticker   SPY   QQQ   TLT   GLD
+Ticker                        
+SPY     1.00  0.90 -0.22  0.05
+QQQ     0.90  1.00 -0.15  0.04
+TLT    -0.22 -0.15  1.00  0.23
+GLD     0.05  0.04  0.23  1.00
+
+Correlation, stress days:
+Ticker   SPY   QQQ   TLT   GLD
+Ticker                        
+SPY     1.00  0.95 -0.38  0.06
+QQQ     0.95  1.00 -0.32  0.07
+TLT    -0.38 -0.32  1.00  0.20
+GLD     0.06  0.07  0.20  1.00
