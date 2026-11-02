@@ -2,7 +2,7 @@
 
 % NeurIPS 2026 submission style. The default option is the main-track,
 % double-blind submission format (line numbers and anonymized author block).
-\usepackage[nonanonymous]{neurips_2026}
+\usepackage[preprint]{neurips_2026}
 
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
@@ -19,9 +19,9 @@
 \title{Sparse Latent Dynamics for Financial Forecasting under Market Shifts}
 
 \author{%
-  Four-Person Project Team \\
-  CSC413 Course Project Proposal \\
-  \texttt{Zhijie Jiang(jian1223), Boyu Song(songboy3), Shuo Liu(liushu70), Yanming Zhao(zhaoy439)}
+  Zhijie Jiang (\texttt{jian1223}), Boyu Song (\texttt{songboy3}), \\
+  Shuo Liu (\texttt{liushu70}), Yanming Zhao (\texttt{zhaoy439}) \\
+  CSC413 Course Project Proposal
 }
 
 
@@ -58,25 +58,45 @@ SINDy \citep{brunton2016} represents state changes using a sparse combination of
 Wang and Lera \citep{wang2026} study return prediction under shifting market regimes. Nguyen et al.\ \citep{nguyen2024} investigate neural ODEs for stock forecasting. Unlike a neural-ODE approach, our core method uses a one-day discrete transition and does not require a numerical ODE solver. We focus on whether sparsity provides benefits beyond adding a transition layer.
 
 \section{Data}
-\paragraph{Assets and period.}
-We plan to retrieve adjusted daily prices and volumes for SPY, QQQ, TLT, and GLD, provisionally covering 2010--2025, from a public market-data provider. The exact dates, missing observations, and data source will be documented after retrieval. The four ETFs represent overlapping equity exposures and distinct bond/gold exposures while keeping the dataset manageable.
+\paragraph{Source and coverage.}
+We downloaded daily adjusted closing prices and trading volumes for SPY, QQQ, TLT, and GLD from Yahoo Finance using \texttt{yfinance} with automatic price adjustment enabled. These ETFs provide exposure to U.S. large-cap equities, Nasdaq-100 equities, long-term U.S. Treasury bonds, and gold, respectively. Prices span January 4, 2010 to December 31, 2025. Computing daily log returns yields 4,023 observations from January 5, 2010 onward. The downloaded closing-price panel has no missing values across the four ETFs. Figure~\ref{fig:growth} summarizes their historical performance; normalized adjusted prices provide a common starting point for comparison.
 
-\paragraph{Features and targets.}
-For each ETF, candidate features include one-day log returns, trailing realized volatility, trailing momentum, and relative trading volume. All rolling features use observations available at or before $t$. The target for asset $i$ is
-\begin{equation}
-y_{t+1}^{(i)}=\log P_{t+1}^{(i)}-\log P_t^{(i)}.
-\end{equation}
-We will fit scaling and any clipping thresholds on training data only. Missing-data handling and the adjusted-price convention will be documented.
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.9\linewidth]{figs/fig1_prices_splits.png}
+  \caption{Historical value relative to an initial \$1, calculated by dividing each adjusted closing price by its initial value. The vertical axis is logarithmic. The unshaded region (2010--2019) is the training period; light-gray and darker-gray backgrounds identify the validation and test periods. The curves show cumulative performance, whereas our prediction targets are daily log returns.}
+  \label{fig:growth}
+\end{figure}
 
-\paragraph{Chronological evaluation.}
-We propose training on 2010--2019, validation on 2020--2021, and a held-out test on 2022--2025. Validation will determine hyperparameters; test results will be inspected only after model selection. We will evaluate stressed versus calmer days using a simple, predeclared market-volatility indicator computed from historical data. Such strata are for analysis, not inputs to a learned regime classifier. An additional rolling-origin experiment may be conducted if time permits.
+\paragraph{Inputs and prediction targets.}
+For asset $i$, the target is $r_{t+1}^{(i)}=\log(P_{t+1}^{(i)}/P_t^{(i)})$, where $P_t^{(i)}$ is the adjusted closing price. Each input will contain 40 consecutive trading days of features available by the close of day $t$; the output will contain the four next-day log returns. Candidate features include historical returns, trailing volatility, momentum, and relative trading volume. Their exact definitions and lookback periods remain to be finalized using training and validation data.
 
-\paragraph{Exploratory analysis.}
-We will examine return distributions, volatility clustering, and differences between calm and stressed periods. The final dataset analysis will use the chosen period and assets.
+\paragraph{Preprocessing and chronological splits.}
+We will train on 2010--2019, select hyperparameters on 2020--2021, and evaluate final forecasts on 2022--2025. These periods contain 2,515, 505, and 1,003 daily return observations, respectively, before constructing model inputs. We will omit samples lacking sufficient feature history, rather than fill them using future observations. Scaling parameters and any optional clipping thresholds will be fitted on training data only. A proposed windowing rule assigns samples by target date and permits validation and test inputs to include earlier observations across split boundaries, since these would already be available at prediction time. Final usable sample counts will be recorded after feature construction. The exploratory figures include all periods; test prediction errors will be reserved for evaluation after model selection.
+
+\paragraph{Volatility and evaluation regimes.}
+To distinguish calmer from more volatile conditions, we compute SPY's trailing 20-day sample standard deviation of log returns, annualized by $\sqrt{252}$. The training-period 80th percentile defines a fixed threshold of approximately 17.4\%. Days above this threshold are labeled stressed; remaining days with available volatility estimates are labeled calm. The first 19 return observations are excluded from this classification. Figure~\ref{fig:volatility} shows substantial variation in volatility. This motivates reporting forecast errors separately across market conditions, rather than relying only on an aggregate error. These labels are evaluation groups, not separate training datasets. For next-day forecasts, we propose grouping errors by the regime observed at forecast time $t$.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.85\linewidth]{figs/fig2_spy_vol_stress.png}
+  \caption{SPY trailing volatility and the training-derived stress threshold. Shaded dates exceed the threshold. Volatility measures the variability of returns, not their direction; 17.4\% is an annualized volatility level, not a daily return.}
+  \label{fig:volatility}
+\end{figure}
+
+\paragraph{Temporal dependence and modeling motivation.}
+Figure~\ref{fig:acf} compares SPY return autocorrelations with those of absolute returns over lags of 1--30 trading days. At lag one, the values are approximately $-0.10$ and $0.31$, respectively. The more persistent positive autocorrelation in absolute returns is consistent with volatility clustering: large moves tend to occur near other large moves, even when their signs differ. This motivates investigating whether a sequence encoder can represent persistent market conditions. It does not establish that signed returns are predictably related to the past, or that the latent transition is sparse. Whether a sparse transition improves forecasts over direct-GRU and dense-transition baselines remains an empirical question.
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.85\linewidth]{figs/fig4_spy_acf.png}
+  \caption{Autocorrelations of SPY daily log returns and absolute log returns. Each lag uses all available pairs separated by that many trading days. These are descriptive full-period estimates, without statistical significance intervals.}
+  \label{fig:acf}
+\end{figure}
 
 \section{Model Architecture}
 \paragraph{Shared GRU encoder.}
-A one-layer GRU with maps each input window to a latent state:
+A one-layer GRU with 64 hidden units maps each input window to a latent state:
 \begin{equation}
 z_t=E_\theta(X_t)\in\mathbb{R}^{m},\qquad m=4.
 \end{equation}
@@ -101,11 +121,9 @@ The sparse model minimizes
 \end{equation}
 Here $\mathcal L_{\rm pred}$ is return MSE for comparing difference of predicted and actual returns, and $\mathcal L_{\rm rec}$ is an optional lightweight reconstruction loss to discourage meaningless latent space learning. The dense-transition baseline uses the corresponding transition-consistency term but no sparse coefficient penalty. Since jointly learned latent coordinates are not unique, we will not directly compare coefficients from independently retrained encoders. For interpretability tests, we will freeze a common encoder and fit or evaluate transitions in that fixed coordinate system.
 
-\begin{figure}[htbp]
+\begin{figure}[t]
     \centering
-    \makebox[\linewidth][c]{%
-        \includegraphics[width=1.1\linewidth]{model_architecture_clean.png}%
-    }
+    \includegraphics[width=\linewidth]{model_architecture_clean.png}
     \caption{Architecture of the sparse latent-transition GRU. A one-layer GRU with 64 hidden units and a linear projection encodes a 40-day historical feature window into a four-dimensional latent state. A residual sparse transition predicts the next latent state using 15 constant, linear, and quadratic candidate terms, with coefficient matrix $\Xi\in\mathbb{R}^{15\times4}$. The forecast head maps this predicted state to next-day log returns for SPY, QQQ, TLT, and GLD. Solid arrows denote the forward prediction path; dashed arrows denote training-only supervision. The next window is encoded using shared parameters to construct the dynamics-consistency target. Training combines return MSE, dynamics consistency, an $\ell_1$ coefficient penalty, and optional lightweight reconstruction. Future observations are used only as training targets; inference requires only $X_t$. The direct-GRU baseline predicts from $z_t$, while the dense-transition baseline replaces $\Theta(z_t)\Xi$ with a small MLP $F_\phi(z_t)$.}
     \label{fig:architecture}
 \end{figure}
